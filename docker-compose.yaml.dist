@@ -1,0 +1,50 @@
+version: '3.7'
+services:
+  nginx:
+    image: "nginx:stable-alpine"
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - "${DOCKER_NGINX_EXTERNAL_HOST}:80"
+    volumes:
+      - ./docker/configuration/nginx/api.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./public:/app/public
+    networks:
+      - planner-api-network
+  php:
+    build:
+      context: .
+      args:
+        DOCKER_USER_ID: ${DOCKER_USER_ID}
+        DOCKER_GROUP_ID: ${DOCKER_GROUP_ID}
+      target: develop
+    env_file:
+      - .env
+    restart: always
+    volumes:
+      - ./docker/configuration/php/php.ini:/usr/local/etc/php/conf.d/xdebug.ini
+      - .:/app
+    networks:
+      - planner-api-network
+    environment:
+      XDEBUG_CONFIG: "remote_port=${DOCKER_XDEBUG_CLIENT_PORT}"
+      PHP_IDE_CONFIG: "serverName=planner_api"
+      XDEBUG_REMOTE_IDEKEY: planner_api
+  db:
+    image: mysql:8.0.34
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: mysql_user
+      MYSQL_PASSWORD: mysql_password
+      MYSQL_DATABASE: planner
+    networks:
+      - planner-api-network
+    ports:
+      - "3306:3306"
+    volumes:
+      - "./var/db_data:/var/lib/mysql"
+networks:
+  planner-api-network:
+    driver: bridge
